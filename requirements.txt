@@ -4,3 +4,4 @@ pinecone-client
 fiftyone
 tensorflow
 Pillow
+typeguard
