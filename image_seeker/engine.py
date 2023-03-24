@@ -98,7 +98,10 @@ def get_dataset():
     Returns:
         object: An object representing the ImageNet Sample dataset.
     """
-    return fo.zoo.load_zoo_dataset("imagenet-sample")
+    dataset = fo.zoo.load_zoo_dataset("imagenet-sample")
+
+    session = fo.launch_app(dataset, address="0.0.0.0")
+    return dataset
 
 
 if __name__ == "__main__":
