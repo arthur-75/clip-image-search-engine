@@ -112,17 +112,21 @@ if __name__ == "__main__":
     Streamlit.
     """
     st.title("ImageNet Similarity Search")
+    model, tokenizer = get_model()
+    index = connect_pinecone("501e4b45-d6d2-48b1-906c-f59ef179b031") #change the key
+    dataset = get_dataset()
+    input_text = st.text_input("Veuillez entrer votre clé API de Pinecone:")
+    if not input_text:
+        text_input = st.text_input("Enter a text description of an image")
+    else:
+        text_input = st.text_input("Enter a text description of an image")
+        if text_input:
+            results = search_index(text_input,tokenizer, model, index, dataset)
+            if results:
+                st.write(f"Top {len(results)} matching images:")
+                for result in results:
+                    st.image(result["data"], caption=result["id"], width=224)
+            else:
+                st.write("No matching images found.")
 
-    text_input = st.text_input("Enter a text description of an image")
-    if text_input:
-        results = search_index(text_input)
-        if results:
-            st.write(f"Top {len(results)} matching images:")
-            for result in results:
-                st.image(result["data"], caption=result["id"], width=224)
-        else:
-            st.write("No matching images found.")
 
-    st.set_page_config(page_title="ImageNet Similarity Search", page_icon=":mag:")
-    st.sidebar.title("About")
-    st.sidebar
