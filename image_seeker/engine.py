@@ -4,7 +4,7 @@ The module contains the following functions:
 - `search_index`: Searches for text input and returns a list of images.
 - `connect_pinecone`: Connects to Pinecone and returns an index.
 - `get_model`: Gets the model and tokenizer for a specified name.
-- `get_dataset`: Gets the ImageNet validation dataset.
+- `get_dataset`: Gets the ImageNet Sample dataset.
 - `__main__`: The main function of the ImageNet Similarity Search. It displays a text input for the
   user to enter a text description of an image, and displays the top matching images in Streamlit.
 """
