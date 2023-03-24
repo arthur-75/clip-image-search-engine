@@ -93,17 +93,12 @@ def get_model(model_name="openai/clip-vit-base-patch32"):
 
 
 def get_dataset():
-    """Gets the ImageNet validation dataset.
+    """Gets the ImageNet Sample dataset.
 
     Returns:
-        object: An object representing the ImageNet validation dataset.
+        object: An object representing the ImageNet Sample dataset.
     """
-    return fo.zoo.load_zoo_dataset(
-        "imagenet-2012",
-        split="validation",
-        dataset_name="ImageNet",
-        source_dir="ImageNet",
-    )
+    return fo.zoo.load_zoo_dataset("imagenet-sample")
 
 
 if __name__ == "__main__":
