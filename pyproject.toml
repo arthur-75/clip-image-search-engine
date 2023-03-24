@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "setuptools-git-versioning<2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+
+[tool.setuptools]
+packages = ["ipoly"]
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project]
+name = "ipoly"
+readme = "README.md"
+dynamic = ["version", "dependencies"]
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.black]
+line-length = 88  # Specify the line length
+target-version = ['py310']  # Specify your Python version
+include = '\.pyi?$'
+exclude = '''  # Specify the files/dirs that should be ignored by the black formatter
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''

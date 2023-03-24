@@ -1,0 +1,12 @@
+-r requirements.txt
+black
+pytest
+ipykernel
+sphinx
+sphinx-rtd-theme
+myst_parser
+sphinx-autodoc-typehints
+sphinx-autodocgen
+readthedocs-sphinx-search
+notebook
+pre-commit
