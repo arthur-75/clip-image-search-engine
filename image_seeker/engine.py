@@ -112,17 +112,16 @@ if __name__ == "__main__":
     Streamlit.
     """
     st.title("ImageNet Similarity Search")
-
-    text_input = st.text_input("Enter a text description of an image")
-    if text_input:
-        results = search_index(text_input)
-        if results:
-            st.write(f"Top {len(results)} matching images:")
-            for result in results:
-                st.image(result["data"], caption=result["id"], width=224)
-        else:
-            st.write("No matching images found.")
-
-    st.set_page_config(page_title="ImageNet Similarity Search", page_icon=":mag:")
-    st.sidebar.title("About")
-    st.sidebar
+    input_text = st.text_input("Please enter your Pinecone API key:")
+    if not input_text:
+        st.warning("You have not yet entered your Pinecone API key.")
+    else:
+        text_input = st.text_input("Enter a text description of an image")
+        if text_input:
+            results = search_index(text_input)
+            if results:
+                st.write(f"Top {len(results)} matching images:")
+                for result in results:
+                    st.image(result["data"], caption=result["id"], width=224)
+            else:
+                st.write("No matching images found.")
