@@ -123,3 +123,6 @@ if __name__ == "__main__":
         else:
             st.write("No matching images found.")
 
+    st.set_page_config(page_title="ImageNet Similarity Search", page_icon=":mag:")
+    st.sidebar.title("About")
+    st.sidebar
