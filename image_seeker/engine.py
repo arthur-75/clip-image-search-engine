@@ -1,132 +1,112 @@
-"""This module contains functions for ImageNet Similarity Search.
+"""This module contains functions for ImageNet Similarity Search."""
 
-The module contains the following functions:
-- `search_index`: Searches for text input and returns a list of images.
-- `connect_pinecone`: Connects to Pinecone and returns an index.
-- `get_model`: Gets the model and tokenizer for a specified name.
-- `get_dataset`: Gets the ImageNet Sample dataset.
-- `__main__`: The main function of the ImageNet Similarity Search. It displays a text input for the
-  user to enter a text description of an image, and displays the top matching images in Streamlit.
-"""
-import fiftyone as fo
+import ipoly
 import numpy as np
 import pinecone
-import streamlit as st
 import tensorflow as tf
-from fiftyone import ViewField as FV
-from PIL import Image
-from transformers import AutoTokenizer
-from transformers import TFAutoModel
+import streamlit as st
 
 
-def search_index(text_input, tokenizer, model, index, dataset, n_results=5):
-    """Searches for text input and returns a list of images.
+def text_embedding(text, processor, model):
+    """Computes the text embedding for a given text input.
 
     Args:
-        text_input (str): The input text to search for.
-        tokenizer (function): A function to tokenize the input text.
-        model (object): An object representing the model used to get text features.
-        index (object): An object representing the index to search for the input text.
-        dataset (object): An object representing the dataset containing the images.
-        n_results (int, optional): The number of results to return. Defaults to 5.
+        text (str): The text input to be embedded.
+        processor (transformers.PreTrainedTokenizer): The tokenizer to process the input text.
+        model (transformers.PreTrainedModel): The pretrained model to compute the embeddings.
 
     Returns:
-        list: A list of dictionaries, where each dictionary represents an image and has two keys:
-              "id" and "data". The "id" key contains the id of the image and the "data" key contains
-              the data of the image in the form of a numpy array.
+        tf.Tensor: The normalized text embedding tensor.
     """
-    text_input = tokenizer(text_input, return_tensors="tf", padding=True)
-    text_features = model.get_text_features(text_input)[0].numpy()
-
-    query_embedding = np.squeeze(text_features)
-    results = index.query(query_embedding, k=n_results)
-
-    if results is None:
-        return []
-
-    result_ids = [r.id for r in results]
-    matching_images = dataset.filter(FV("metadata.id").is_in(result_ids)).take(
-        n_results,
-    )
-
-    image_list = []
-    for image in matching_images:
-        img = Image.fromarray(image["pixels"])
-        img = img.resize((224, 224))
-        img_data = np.array(img)
-        image_list.append({"id": image["metadata"]["id"], "data": img_data})
-
-    return image_list
+    tokens = processor(text=text, padding=True, images=None, return_tensors="tf")
+    text_emb = model.get_text_features(**tokens)
+    norm_factor = np.linalg.norm(text_emb, axis=1)
+    text_emb = tf.transpose(text_emb) / norm_factor
+    text_emb = tf.transpose(text_emb)
+    return text_emb
 
 
-def connect_pinecone(api_key, environment="us-central1-gcp"):
-    """Connects to Pinecone and returns an index.
+def image_embedding(image_batch, processor, model):
+    """Computes image embeddings for a batch of images.
 
     Args:
-        api_key (str): The API key used to connect to Pinecone.
-        environment (str, optional): The environment to connect to. Defaults to "us-central1-gcp".
+        image_batch (List[Union[PIL.Image.Image, np.ndarray]]): A list of images to be embedded.
+        processor (transformers.PreTrainedTokenizer): The tokenizer to process the input images.
+        model (transformers.PreTrainedModel): The pretrained model to compute the embeddings.
 
     Returns:
-        object: An object representing the Pinecone index.
+        tf.Tensor: The normalized image embedding tensor.
+    """
+    images = processor(text=None, images=image_batch, return_tensors="tf")[
+        "pixel_values"
+    ]
+    img_emb = model.get_image_features(images)
+    norm_factor = np.linalg.norm(img_emb, axis=1)
+    img_emb = tf.transpose(img_emb) / norm_factor
+    img_emb = tf.transpose(img_emb)
+    return img_emb
+
+
+def connect_pinecone(processor, model, api_key, environment="us-central1-gcp"):
+    """Connects to Pinecone and initializes the index with image embeddings if it doesn't exist.
+
+    Args:
+        processor (transformers.PreTrainedTokenizer): The tokenizer to process the input images.
+        model (transformers.PreTrainedModel): The pretrained model to compute the embeddings.
+        api_key (str): The API key for Pinecone.
+        environment (str, optional): The Pinecone environment to connect to. Defaults to "us-central1-gcp".
+
+    Returns:
+        pinecone.Index: The Pinecone index containing the image embeddings.
     """
     pinecone.init(api_key=api_key, environment=environment)
     index_name = "imagenet-index"
-    if index_name in pinecone.list_indexes():
-        pinecone.delete_index(index_name)
+    if not (index_name in pinecone.list_indexes()):
+        dataset = ipoly.load("imagenet-sample/data", keep_3D=True, file_names=True)
+        np_dataset = np.array(dataset)
+        img_embd = image_embedding(np_dataset[:, 0].tolist(), processor, model)
+        index_vectors = list(zip(np_dataset[:, 1].tolist(), img_embd.numpy().tolist()))
+        pinecone.create_index(index_name, dimension=512)
+        index = pinecone.Index(index_name)
+        index.upsert(index_vectors)
+    else:
+        index = pinecone.Index(index_name)
+    return index
 
-    pinecone.create_index(index_name, dimension=512)
-    return pinecone.Index(index_name)
 
-
-def get_model(model_name="openai/clip-vit-base-patch32"):
-    """Gets the model and tokenizer for a specified name.
+def get_images(text_input, processor, model, index):
+    """Finds the top 5 most similar images to the input text from the Pinecone index.
 
     Args:
-        model_name (str, optional): The name of the model to get. Defaults to "openai/clip-vit-base-patch32".
+        text_input (str): The input text to find related images.
+        processor (transformers.PreTrainedTokenizer): The tokenizer to process the input text and images.
+        model (transformers.PreTrainedModel): The pretrained model to compute the embeddings.
+        index (pinecone.Index): The Pinecone index containing the image embeddings.
 
     Returns:
-        tuple: A tuple containing the model and the tokenizer.
+        List[Tuple[str, float]]: A list of tuples with image names and their similarity scores.
     """
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = TFAutoModel.from_pretrained(model_name)
-    return model, tokenizer
-
-
-def get_dataset():
-    """Gets the ImageNet Sample dataset.
-
-    Returns:
-        object: An object representing the ImageNet Sample dataset.
-    """
-    dataset = fo.zoo.load_zoo_dataset("imagenet-sample")
-
-    session = fo.launch_app(dataset, address="0.0.0.0")
-    return dataset
+    test_embd = text_embedding(text_input, processor, model).numpy().tolist()
+    return index.query(test_embd, top_k=5, include_metadata=True)
 
 
 if __name__ == "__main__":
-    """The main function of the ImageNet Similarity Search.
+    st.title("Simple Streamlit App")
 
-    This function displays a text input for the user to enter a text
-    description of an image, and displays the top matching images in
-    Streamlit.
-    """
-    st.title("ImageNet Similarity Search")
-    model, tokenizer = get_model()
-    index = connect_pinecone("501e4b45-d6d2-48b1-906c-f59ef179b031") #change the key
-    dataset = get_dataset()
-    input_text = st.text_input("Veuillez entrer votre clé API de Pinecone:")
-    if not input_text:
-        text_input = st.text_input("Enter a text description of an image")
-    else:
-        text_input = st.text_input("Enter a text description of an image")
-        if text_input:
-            results = search_index(text_input,tokenizer, model, index, dataset)
-            if results:
-                st.write(f"Top {len(results)} matching images:")
-                for result in results:
-                    st.image(result["data"], caption=result["id"], width=224)
+    api_token = st.text_input("Enter your API token", type="password")
+    text_input = st.text_input("Enter a small text")
+
+    model, processor = ipoly.load_transformers("openai/clip-vit-base-patch32")
+
+    if st.button("Validate"):
+        if not api_token:
+            st.error("Please enter a valid API token.")
+        else:
+            index = connect_pinecone(processor, model, api_token)
+            images = get_images(text_input, processor, model, index)
+            images = [name["id"] for name in images["matches"]]
+            if images:
+                for img in images:
+                    st.image(img, caption="Image", use_column_width=True)
             else:
-                st.write("No matching images found.")
-
-
+                st.error("No images were found.")
