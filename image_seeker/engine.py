@@ -91,7 +91,7 @@ def get_images(text_input, processor, model, index):
 
 
 if __name__ == "__main__":
-    st.title("Simple Streamlit App")
+    st.title("Image seeker")
 
     api_token = st.text_input("Enter your API token", type="password")
     text_input = st.text_input("Enter a small text")
