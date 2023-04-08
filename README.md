@@ -13,6 +13,7 @@ To set up the environment, execute in a terminal the followings:
 
 ###### 2. Run app
 
+* `cd image_seeker` 
 * `python -m streamlit run engine.py`
 
 ###### 3. Data
