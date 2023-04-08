@@ -47,7 +47,7 @@ def image_embedding(image_batch, processor, model):
     return img_emb
 
 
-def connect_pinecone(processor, model, api_key, environment="us-central1-gcp"):
+def connect_pinecone(processor, model, api_key, environment="eu-west1-gcp"):
     """Connects to Pinecone and initializes the index with image embeddings if it doesn't exist.
 
     Args:
@@ -94,7 +94,9 @@ if __name__ == "__main__":
     st.title("Image seeker")
 
     api_token = st.text_input("Enter your API token", type="password")
+    text_environment=st.text_input("Enter your cloud environment ex: eu-west1-gcp")
     text_input = st.text_input("Enter a small text")
+    
 
     model, processor = ipoly.load_transformers("openai/clip-vit-base-patch32")
 
@@ -102,7 +104,7 @@ if __name__ == "__main__":
         if not api_token:
             st.error("Please enter a valid API token.")
         else:
-            index = connect_pinecone(processor, model, api_token)
+            index = connect_pinecone(processor, model, api_token,text_environment)
             images = get_images(text_input, processor, model, index)
             images = [name["id"] for name in images["matches"]]
             if images:
