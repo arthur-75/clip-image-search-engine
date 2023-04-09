@@ -1,0 +1,2 @@
+archive/EfficientNetB3-sports-0.97.h5 filter=lfs diff=lfs merge=lfs -text
+model/clip_mode5.pt filter=lfs diff=lfs merge=lfs -text
